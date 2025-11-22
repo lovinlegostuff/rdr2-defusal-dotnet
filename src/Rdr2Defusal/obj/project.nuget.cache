@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "rMSTibQFb3OtSJB5oEPIrCuONERkYh6+dS6acb8w2HT9jjpe315YdippohauTpbFmKtsbf6jg+fgWsy0YZZ5Zg==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\-\\Documents\\rdr2-defusal-dotnet\\src\\Rdr2Defusal\\Rdr2Defusal.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\-\\.nuget\\packages\\microsoft.netframework.referenceassemblies\\1.0.2\\microsoft.netframework.referenceassemblies.1.0.2.nupkg.sha512",
+    "C:\\Users\\-\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net48\\1.0.2\\microsoft.netframework.referenceassemblies.net48.1.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- DotNet-V2 targets .NET Framework -->
+    <TargetFramework>net48</TargetFramework>
+
+    <!-- RDR2 is 64-bit -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+
+    <!-- Build a DLL -->
+    <OutputType>Library</OutputType>
+
+    <!-- Assembly / namespace names -->
+    <AssemblyName>Rdr2Defusal</AssemblyName>
+    <RootNamespace>Rdr2Defusal</RootNamespace>
+
+    <!-- VS Code / compile QoL -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+
+    <!-- You’re using System.Windows.Forms.Keys -->
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- Put output somewhere simple -->
+    <OutputPath>..\..\dist\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- Don’t try to copy framework/API deps into output -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+
+    <!-- YOUR RDR2 ROOT -->
+    <Rdr2Root>C:\Program Files (x86)\Steam\steamapps\common\Red Dead Redemption 2</Rdr2Root>
+    <Rdr2Scripts>$(Rdr2Root)\scripts</Rdr2Scripts>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Local API reference -->
+    <Reference Include="ScriptHookRDRNetAPI">
+      <HintPath>libs\ScriptHookRDRNetAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Auto-copy DLL into RDR2/scripts after every build -->
+  <Target Name="PostBuildCopyToRDR2" AfterTargets="Build">
+    <MakeDir Directories="$(Rdr2Scripts)" Condition="!Exists('$(Rdr2Scripts)')" />
+    <Copy
+      SourceFiles="$(TargetPath)"
+      DestinationFolder="$(Rdr2Scripts)"
+      SkipUnchangedFiles="true" />
+    <Message Text="Copied $(TargetFileName) to $(Rdr2Scripts)" Importance="high" />
+  </Target>
+
+</Project>

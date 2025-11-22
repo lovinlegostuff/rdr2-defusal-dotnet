@@ -1,0 +1,5 @@
+C:\Users\-\Documents\rdr2-defusal-dotnet\src\Rdr2Defusal\obj\Release\net48\Rdr2Defusal.csproj.AssemblyReference.cache
+C:\Users\-\Documents\rdr2-defusal-dotnet\src\Rdr2Defusal\obj\Release\net48\Rdr2Defusal.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\-\Documents\rdr2-defusal-dotnet\src\Rdr2Defusal\obj\Release\net48\Rdr2Defusal.AssemblyInfoInputs.cache
+C:\Users\-\Documents\rdr2-defusal-dotnet\src\Rdr2Defusal\obj\Release\net48\Rdr2Defusal.AssemblyInfo.cs
+C:\Users\-\Documents\rdr2-defusal-dotnet\src\Rdr2Defusal\obj\Release\net48\Rdr2Defusal.csproj.CoreCompileInputs.cache

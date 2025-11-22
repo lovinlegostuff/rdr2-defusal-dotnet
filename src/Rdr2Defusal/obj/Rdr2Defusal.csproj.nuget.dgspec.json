@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\-\\Documents\\rdr2-defusal-dotnet\\src\\Rdr2Defusal\\Rdr2Defusal.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\-\\Documents\\rdr2-defusal-dotnet\\src\\Rdr2Defusal\\Rdr2Defusal.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\-\\Documents\\rdr2-defusal-dotnet\\src\\Rdr2Defusal\\Rdr2Defusal.csproj",
+        "projectName": "Rdr2Defusal",
+        "projectPath": "C:\\Users\\-\\Documents\\rdr2-defusal-dotnet\\src\\Rdr2Defusal\\Rdr2Defusal.csproj",
+        "packagesPath": "C:\\Users\\-\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\-\\Documents\\rdr2-defusal-dotnet\\src\\Rdr2Defusal\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\-\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net48"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net48": {
+            "targetAlias": "net48",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net48": {
+          "targetAlias": "net48",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.2, )",
+              "autoReferenced": true
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.428\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
