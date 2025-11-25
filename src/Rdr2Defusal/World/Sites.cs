@@ -3,6 +3,8 @@ namespace Rdr2Defusal.World
     /// <summary>
     /// Hard-coded arena / site coordinates.
     /// We store raw floats to avoid Vector3 type mismatch between API versions.
+    /// SiteRegistry uses these as defaults; update SiteRegistry at runtime via dev hotkeys.
+    /// Once we persist to disk we can drop these constants into map presets.
     /// </summary>
     public static class Sites
     {

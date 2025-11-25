@@ -1,0 +1,418 @@
+Absolutely — here’s a Codex-ready “project brain dump” you can paste into a `CODEX_PROJECT.md` (or similar) so the Codex LLM in VS Code knows **exactly** how to work in this repo without breaking builds.
+
+---
+
+# RDR2-DEFUSAL (Codex Project Brief)
+
+## 0) What this project is
+
+We’re building a **Counter-Strike 2 style Defusal mode** inside **Red Dead Redemption 2 Story Mode (offline)** using:
+
+* **Alexander Blade ScriptHookRDR2 (AB hook)**
+* **ScriptHookRDR2DotNet-V2 (.NET scripting)**
+* **C# (.NET Framework 4.8 / net48)**
+* No RedM, no online assets by default.
+
+Current state:
+
+* Build+deploy pipeline works.
+* Dev harness works (ragdoll, coords dump, teleport, round loop).
+* Bot sandbox works, but required RDR2-specific fixes to avoid invisible bots / missing APIs.
+
+Goal state:
+
+* Teams (T/CT) of bots.
+* Round states (Warmup → Live → Post → Loop).
+* Bomb object, plant/defuse.
+* CS-style economy + buy phase later.
+
+---
+
+## 1) Toolchain & environment (assumed by Codex)
+
+**Game**: RDR2 Story Mode
+**Hook**: AB ScriptHookRDR2 + ScriptHookRDR2DotNet-V2
+**Project target**: `net48`, `x64`, output DLL placed in `<RDR2 root>\scripts\`
+
+**RDR2 install path (user machine):**
+
+```
+C:\Program Files (x86)\Steam\steamapps\common\Red Dead Redemption 2
+```
+
+**Important**: This is inside Program Files, so postbuild copy may require admin rights.
+
+---
+
+## 2) API Flavor We Are On (CRITICAL)
+
+This repo uses the **RDR2 namespace API** from ScriptHookRDR2DotNet-V2.
+
+✅ Works:
+
+```csharp
+using RDR2;
+using RDR2.Native;
+using RDR2.UI;
+```
+
+❌ DO NOT USE:
+
+```csharp
+using ScriptHookRDR2DotNet;          // not available in this build
+using ScriptHookRDR2DotNet.Native;   // not available in this build
+```
+
+---
+
+## 3) Known Missing / Different Wrappers (compile traps)
+
+These **do not exist** in our API build. Codex must never emit them:
+
+### Missing helper methods / properties
+
+* `Game.IsKeyPressed(...)`
+* `Game.IsKeyDown(...)`
+* `Game.LastFrameTime`
+* `Environment.TickCount64` (even though net48 “should” have it, our ref assemblies don’t)
+
+### Missing enums / types
+
+* `WeaponHash` enum
+* `Hash` enum coverage is partial / unreliable
+* Explicit `Vector3` type import in some files caused missing type errors
+  → use `var` for vector positions unless necessary.
+
+### Missing members
+
+* `Model.MarkAsNoLongerNeeded()`
+  → do not call it.
+  (We only use `Model.Request(...)` and `model.IsLoaded`.)
+
+### UI overload mismatch
+
+* `Screen.ShowSubtitle(text, duration)` overload **does not exist**.
+* Only safe UI call:
+
+  ```csharp
+  Screen.DisplaySubtitle("text");
+  ```
+
+  (Duration args caused CS1503 int→string errors.)
+
+---
+
+## 4) Universal Compile-Safe Patterns (Codex must follow)
+
+### Input handling
+
+Use **KeyDown event**, not polling helpers.
+
+✅
+
+```csharp
+KeyDown += OnKeyDown;
+
+private void OnKeyDown(object s, KeyEventArgs e)
+{
+    if (e.KeyCode == Keys.F9) { ... }
+}
+```
+
+❌
+
+```csharp
+if (Game.IsKeyPressed(Keys.F9)) { ... }
+```
+
+### Delta time (dt)
+
+We compute dt ourselves with Stopwatch.
+
+✅
+
+```csharp
+private readonly Stopwatch _sw = Stopwatch.StartNew();
+private long _lastMs;
+
+_lastMs = _sw.ElapsedMilliseconds;
+
+long now = _sw.ElapsedMilliseconds;
+float dt = (now - _lastMs) / 1000f;
+_lastMs = now;
+dt = Math.Clamp(dt, 0f, 0.2f);
+```
+
+❌
+
+```csharp
+float dt = Game.LastFrameTime;
+```
+
+### Native calls
+
+We must use **ulong native hashes + InputArgument[]**.
+
+✅
+
+```csharp
+const ulong SOME_NATIVE = 0xDEADBEEF...;
+
+Function.Call(SOME_NATIVE,
+    new InputArgument(handle),
+    new InputArgument(value)
+);
+```
+
+**Always pass `.Handle` not the object** unless known safe.
+
+✅
+
+```csharp
+new InputArgument(ped.Handle)
+```
+
+❌
+
+```csharp
+Function.Call(hash, ped, true); // caused InputArgument conversion errors
+```
+
+### Resolving hashes from string names
+
+Use `GET_HASH_KEY` native, not enums.
+
+✅
+
+```csharp
+const ulong GET_HASH_KEY = 0xFD340785ADF8CFB7;
+uint weaponHash = Function.Call<uint>(GET_HASH_KEY, new InputArgument("WEAPON_REPEATER_CARBINE"));
+```
+
+---
+
+## 5) RDR2-ONLY Native Hashes We Trust (no GTA hashes)
+
+These are confirmed working in this project:
+
+### Player / dev harness
+
+* `SET_PED_TO_RAGDOLL`
+  `0xAE99FB955581844A`
+
+* `SET_ENTITY_COORDS`-style teleport
+  `0x06843DA7060A026B`
+
+* `SET_ENTITY_HEADING`
+  `0xCF2B9C0645C4651B`
+
+### Bots
+
+* `GET_HASH_KEY`
+  `0xFD340785ADF8CFB7`
+
+* `_SET_RANDOM_OUTFIT_VARIATION` (fix invisible bots)
+  `0x283978A15512B2FE`
+
+* `GIVE_WEAPON_TO_PED`
+  `0x5E3BDDBCB83F3D84`
+
+* `TASK_COMBAT_PED`
+  `0xF166E48407BAC484`
+
+Codex must **not invent hashes**. If a new native is needed, it must be sourced from RDR2 native DB (not GTA/FiveM).
+
+---
+
+## 6) Why bots were invisible (RDR2 lesson learned)
+
+We spawned an invisible bot that still attacked.
+
+RDR2 causes:
+
+1. Using Online/RDO-only models in Story Mode ⇒ invisible entities.
+2. Some models need an outfit/variation immediately after spawn.
+
+Fix pattern we use:
+
+```csharp
+Function.Call(SET_RANDOM_OUTFIT_VARIATION,
+    new InputArgument(bot.Handle),
+    new InputArgument(true)
+);
+```
+
+And we currently stick to **Story-safe models** unless we add an Online unlocker.
+
+---
+
+## 7) Current Repo Structure
+
+```
+rdr2-defusal-dotnet/
+└─ src/
+   └─ Rdr2Defusal/
+      ├─ Rdr2Defusal.csproj
+      ├─ DefusalDevHarness.cs   // main dev entry script
+      ├─ BotSandbox.cs          // bot spawning test
+      ├─ Core/
+      │  └─ DefusalCore.cs      // round state machine (timers only)
+      ├─ Bots/
+      │  └─ BotDirector.cs      // placeholder (no spawns yet)
+      └─ World/
+         └─ Sites.cs            // arena + A/B coords
+libs/
+└─ ScriptHookRDRNetAPI.dll
+dist/
+└─ Rdr2Defusal.dll  // build output
+```
+
+---
+
+## 8) File Summaries (what each does)
+
+### `DefusalDevHarness.cs`
+
+**Known working dev hotkeys:**
+
+* `F9` → ragdoll player
+* `F6` → subtitle dump of player coords
+* `F7` → teleport to arena center
+* `F5` → toggle round loop
+
+**Critical implementations:**
+
+* dt computed with Stopwatch
+* uses only `Screen.DisplaySubtitle(string)`
+* uses Function.Call hashes above
+
+### `World/Sites.cs`
+
+Stores hardcoded coords.
+
+Current Arena Center (dumped in game):
+
+```text
+ArenaCenter:
+X -1351.43
+Y  2441.27
+Z   308.42
+H   310.5
+```
+
+Site A/B are placeholders relative to arena. User will provide real A/B dumps later using F6.
+
+### `Core/DefusalCore.cs`
+
+Round state machine only (no bots yet):
+`Idle → Warmup → Live → PostRound → Warmup…`
+
+Uses dt passed from harness.
+Displays state ticker via subtitles.
+
+### `BotSandbox.cs`
+
+Single hostile spawn test.
+
+Successful RDR2-safe spawn pattern:
+
+* `Model("A_M_M_RANCHER_01").Request(5000)`
+* `World.CreatePed(model, spawnPos)`
+* `_SET_RANDOM_OUTFIT_VARIATION(bot.Handle, true)`
+* `GIVE_WEAPON_TO_PED(bot.Handle, weaponHash, ammo...)`
+* `TASK_COMBAT_PED(bot.Handle, player.Handle, 0, 16)`
+* `F11` deletes bot with `bot.Delete()`
+
+Also:
+
+* avoids `WeaponHash` enum
+* avoids explicit `Vector3` type
+* avoids model.MarkAsNoLongerNeeded
+
+### `Bots/BotDirector.cs`
+
+Currently placeholder for:
+
+* team spawns
+* macro orders
+* reset per round
+
+Codex may extend this but must follow compile-safe rules.
+
+---
+
+## 9) Build / Deploy Workflow (must remain stable)
+
+**Build command:**
+
+```bash
+dotnet build -c Release
+```
+
+**Output:**
+
+```
+dist\Rdr2Defusal.dll
+```
+
+**Postbuild auto-deploy in csproj:**
+Copies DLL to:
+
+```
+<RDR2 root>\scripts\
+```
+
+If postbuild fails due to permissions:
+
+* run VS Code as admin, OR
+* later move RDR2 to non-ProgramFiles library.
+
+---
+
+## 10) Codex “Do Not Break Build” Rules
+
+Codex must obey all of these:
+
+1. **Use `RDR2.*` namespaces only.**
+2. **Never call missing helpers**:
+
+   * no `Game.IsKeyPressed`
+   * no `Game.LastFrameTime`
+   * no `Environment.TickCount64`
+3. **UI subtitles:** only `Screen.DisplaySubtitle(string)`.
+4. **Native calls:** must be `ulong hash` + `InputArgument[]`.
+5. **Pass handles** (`ped.Handle`) into natives.
+6. **No `WeaponHash` enum usage.**
+7. **No explicit `Vector3` unless proven present; default to `var`.**
+8. **No GTA/FiveM hashes or assumptions.**
+9. **Don’t call `Model.MarkAsNoLongerNeeded()`** (missing here).
+
+If Codex is unsure, it should copy the patterns from working files rather than invent new API.
+
+---
+
+## 11) Immediate Next Milestones
+
+1. **Lock real A/B sites**
+   User will F6 dump A and B positions → update `Sites.cs`.
+
+2. **Team bot spawning**
+
+   * Add story-safe ped model lists for T/CT groups.
+   * Spawn 3v3 around arena.
+   * Apply outfit variation to each spawn.
+   * Give weapons with GIVE_WEAPON_TO_PED.
+
+3. **Basic bot goals**
+
+   * On Live state: push/hold A/B sites instead of just player-combat.
+   * Start with simple “go to coord + combat if sees enemy.”
+
+4. **Bomb prototype**
+
+   * Use an existing satchel/dynamite-like prop (no custom assets yet).
+   * Plant at site -> timer -> defuse interaction.
+
+---
+
+If you want, I can also format this as a **Codex system prompt** (“You are Codex, obey these rules…”) to drop into your `.codex/config.json` or VS Code extension prompt.
